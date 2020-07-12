@@ -38,6 +38,8 @@ var CRID = /** @class */ (function () {
     function CRID(key1, key2) {
         if (key1 === void 0) { key1 = null; }
         if (key2 === void 0) { key2 = 0; }
+        this.video = new Uint8Array();
+        this.audio = new Uint8Array();
         this._vm1 = new Uint8Array(0x20);
         this._vm2 = new Uint8Array(0x20);
         this._am = new Uint8Array(0x20);
@@ -166,8 +168,8 @@ var CRID = /** @class */ (function () {
                         this.video = new Uint8Array(v_size);
                         this.audio = new Uint8Array(a_size);
                         return [4 /*yield*/, Promise.all([
-                                this.concatAsync(v_trunks, "video"),
-                                this.concatAsync(a_trunks, "audio")
+                                this.concatAsync(v_trunks, this.video),
+                                this.concatAsync(a_trunks, this.audio)
                             ])];
                     case 1:
                         _a.sent();
@@ -216,8 +218,8 @@ var CRID = /** @class */ (function () {
         }
         this.video = new Uint8Array(v_size);
         this.audio = new Uint8Array(a_size);
-        this.concat(v_trunks, "video");
-        this.concat(a_trunks, "audio");
+        this.concat(v_trunks, this.video);
+        this.concat(a_trunks, this.audio);
         return {
             video: this.video,
             audio: this.audio
@@ -265,13 +267,12 @@ var CRID = /** @class */ (function () {
             p[j] ^= this._am[j & 0x1f];
         return p;
     };
-    CRID.prototype.concatAsync = function (trunks, type) {
+    CRID.prototype.concatAsync = function (trunks, dist) {
         return __awaiter(this, void 0, void 0, function () {
-            var dist, offset, _i, trunks_1, i, buff;
+            var offset, _i, trunks_1, i, buff;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        dist = this[type];
                         offset = 0;
                         _i = 0, trunks_1 = trunks;
                         _a.label = 1;
@@ -287,13 +288,12 @@ var CRID = /** @class */ (function () {
                     case 3:
                         _i++;
                         return [3 /*break*/, 1];
-                    case 4: return [2 /*return*/];
+                    case 4: return [2 /*return*/, dist];
                 }
             });
         });
     };
-    CRID.prototype.concat = function (trunks, type) {
-        var dist = this[type];
+    CRID.prototype.concat = function (trunks, dist) {
         var offset = 0;
         for (var _i = 0, trunks_2 = trunks; _i < trunks_2.length; _i++) {
             var i = trunks_2[_i];
@@ -301,6 +301,7 @@ var CRID = /** @class */ (function () {
             dist.set(buff, offset);
             offset += buff.byteLength;
         }
+        return dist;
     };
     return CRID;
 }());

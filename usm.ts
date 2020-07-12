@@ -2,8 +2,8 @@ class CRID {
     _vm1: Uint8Array; // _video_vm11
     _vm2: Uint8Array; // _video_vm12
     _am:  Uint8Array; // _audioMask
-    video: Uint8Array;
-    audio: Uint8Array;
+    video: Uint8Array = new Uint8Array();
+    audio: Uint8Array = new Uint8Array();
 
     parseKey (key:any) {
         let buff = new Uint8Array(4);
@@ -123,8 +123,8 @@ class CRID {
         this.video = new Uint8Array(v_size);
         this.audio = new Uint8Array(a_size);
         await Promise.all([
-            this.concatAsync(v_trunks, "video"),
-            this.concatAsync(a_trunks, "audio")
+            this.concatAsync(v_trunks, this.video),
+            this.concatAsync(a_trunks, this.audio)
         ])
         return {
             video: this.video,
@@ -166,8 +166,8 @@ class CRID {
         }
         this.video = new Uint8Array(v_size);
         this.audio = new Uint8Array(a_size);
-        this.concat(v_trunks, "video")
-        this.concat(a_trunks, "audio")
+        this.concat(v_trunks, this.video);
+        this.concat(a_trunks, this.audio);
         return {
             video: this.video,
             audio: this.audio
@@ -199,22 +199,22 @@ class CRID {
         for (let j = 0x140; j < p.byteLength; j++) p[j] ^= this._am[j & 0x1f];
         return p;
     }
-    private async concatAsync(trunks: Promise<Uint8Array>[], type: string) {
-        let dist = this[type]
+    private async concatAsync(trunks: Promise<Uint8Array>[], dist: Uint8Array) {
         let offset = 0;
         for (let i of trunks) {
             let buff = await i;
             dist.set(buff, offset);
             offset += buff.byteLength;
         }
+        return dist;
     }
-    private concat(trunks: Uint8Array[], type: string) {
-        let dist = this[type]
+    private concat(trunks: Uint8Array[], dist: Uint8Array) {
         let offset = 0;
         for (let i of trunks) {
             let buff = i;
             dist.set(buff, offset);
             offset += buff.byteLength;
         }
+        return dist;
     }
 }

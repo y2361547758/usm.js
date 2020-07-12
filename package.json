@@ -1,0 +1,28 @@
+{
+  "name": "usm.js",
+  "version": "1.0.0",
+  "description": "js/ts port of usm demuxer",
+  "main": "index.js",
+  "dependencies": {
+    "typescript": "^3.9.6",
+    "@types/node": "^14.0.22"
+  },
+  "devDependencies": {
+    "ffmpeg.js": "^4.2.9003",
+    "@ffmpeg/ffmpeg": "^0.8.3"
+  },
+  "scripts": {
+    "test": "npm run build",
+    "build": "tsc index.ts usm.ts && sed -i \"s/^exports.*$//\" index.js && sed -i \"s/^var ffmpeg_1.*$//\" index.js && sed -i \"s/ffmpeg_1/FFmpeg/\" index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@y.github.com:y2361547758/usm.js.git"
+  },
+  "keywords": [
+    "usm",
+    "demuxer"
+  ],
+  "author": "Misaka Honoka",
+  "license": "MIT"
+}

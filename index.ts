@@ -3,7 +3,7 @@ import { createFFmpeg } from "@ffmpeg/ffmpeg";
 let crid = new CRID();
 let worker = createFFmpeg({ log: true })
 
-async function mux(crid) {
+async function mux(crid: CRID) {
     await worker.load()
     await worker.write('/v.ivf', crid.video)
     await worker.write('/a.adx', crid.audio)
