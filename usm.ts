@@ -12,9 +12,9 @@ class CRID {
                 key = parseInt(key)
             case 'number':
                 buff[0] = key & 0xff;
-                buff[0] = key >> 8 & 0xff;
-                buff[0] = key >> 16 & 0xff;
-                buff[0] = key >> 24 & 0xff;
+                buff[1] = key >> 8 & 0xff;
+                buff[2] = key >> 16 & 0xff;
+                buff[3] = key >> 24 & 0xff;
                 break;
             case 'object':
                 if (key instanceof Uint8Array) return key;
@@ -174,29 +174,29 @@ class CRID {
         }
     }
     async maskVideoAsync(p:Uint8Array) {
-        if (p.byteLength >= 576) {
+        if (p.byteLength >= 0x240) {
             let mask = new Uint8Array(this._vm2);
-            for (let j = 320; j < p.byteLength; j++) mask[j & 31] = p[j] ^= mask[j & 31];
+            for (let j = 0x140; j < p.byteLength; j++) mask[j & 0x1f] = (p[j] ^= mask[j & 0x1f]) ^ this._vm2[j & 0x1f];
             mask = new Uint8Array(this._vm1);
-            for (let j = 64; j < 320; j++) p[j] ^= mask[j & 31] ^= p[j + 256];
+            for (let j = 0x40; j < 0x140; j++) p[j] ^= mask[j & 0x1f] ^= p[j + 0x100];
         }
         return p;
     }
     maskVideo(p:Uint8Array) {
-        if (p.byteLength >= 576) {
+        if (p.byteLength >= 0x240) {
             let mask = new Uint8Array(this._vm2);
-            for (let j = 320; j < p.byteLength; j++) mask[j & 31] = p[j] ^= mask[j & 31];
+            for (let j = 0x140; j < p.byteLength; j++) mask[j & 0x1f] = (p[j] ^= mask[j & 0x1f]) ^ this._vm2[j & 0x1f];
             mask = new Uint8Array(this._vm1);
-            for (let j = 64; j < 320; j++) p[j] ^= mask[j & 31] ^= p[j + 256];
+            for (let j = 0x40; j < 0x140; j++) p[j] ^= mask[j & 0x1f] ^= p[j + 0x100];
         }
         return p;
     }
     async maskAudioAsync(p:Uint8Array) {
-        for (let j = 320; j < p.byteLength; j++) p[j] ^= this._am[j & 31];
+        for (let j = 0x140; j < p.byteLength; j++) p[j] ^= this._am[j & 0x1f];
         return p;
     }
     maskAudio(p:Uint8Array) {
-        for (let j = 320; j < p.byteLength; j++) p[j] ^= this._am[j & 31];
+        for (let j = 0x140; j < p.byteLength; j++) p[j] ^= this._am[j & 0x1f];
         return p;
     }
     private async concatAsync(trunks: Promise<Uint8Array>[], type: string) {
