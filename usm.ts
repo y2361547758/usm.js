@@ -4,6 +4,8 @@ class CRID {
     _am:  Uint8Array; // _audioMask
     video: Uint8Array = new Uint8Array();
     audio: Uint8Array = new Uint8Array();
+    strings: string[] = [];
+    private constString: Set<string> = new Set(["", "<NULL>", "fmtver", "filename", "filesize", "datasize", "stmid", "chno", "minchk", "minbuf", "avbps"]);
 
     parseKey (key:any) {
         let buff = new Uint8Array(4);
@@ -87,21 +89,47 @@ class CRID {
         }
     }
 
+    parseString(data: ArrayBuffer, len: number) {
+        const fp = new DataView(data, 0, len);
+        const sign = fp.getUint32(0, true);
+        const size = fp.getUint32(4);
+        const valueOffset = fp.getUint32(8);
+        const stringOffset = fp.getUint32(12);
+        const dataOffset = fp.getUint32(16);
+        const nameOffset = fp.getUint32(20);
+        const elementCount = fp.getUint16(24);
+        const valueSize = fp.getUint16(26);
+        const valueCount = fp.getUint32(28);
+        const _sl = dataOffset - stringOffset;
+        const p = new Uint8Array(data, 8 + stringOffset, _sl);
+        let jisdecoder = new TextDecoder('shift-jis');
+        let i = 0;
+        let j = 0;
+        while (i < _sl) {
+            while (p[i]) ++i;
+            let s = jisdecoder.decode(p.slice(j, i))
+            j = ++i;
+            if (this.constString.has(s)) continue;
+            this.strings.push(s);
+        }
+    }
     async demuxAsync(data: ArrayBuffer) {
         let ftell = 0;
         let v_trunks:Promise<Uint8Array>[] = [], a_trunks:Promise<Uint8Array>[] = [];
         let v_size = 0, a_size = 0;
         while (ftell < data.byteLength) {
-            const fp = new DataView(data, ftell, 16);
+            const fp = new DataView(data, ftell, 32);
             const magic = fp.getUint32(0, true);
             const len = fp.getUint32(4);
             const off  = fp.getUint16(8);
             const pad = fp.getUint16(10);
             const type = fp.getUint32(12);
-            let p:Uint8Array, mask:Uint8Array;
+            const frameTime = fp.getUint32(16);
+            const frameRate = fp.getUint32(20);
+            let p:Uint8Array;
             switch (magic) {
                 case 0x44495243: // CRID
-                    p = new Uint8Array(data, ftell + off + 8, len - off - pad);
+                    this.parseString(data.slice(ftell + off + 8), len - off - pad);
                     break;
                 case 0x56465340: // @SFV
                     if (type) break;
@@ -136,16 +164,18 @@ class CRID {
         let v_trunks:Uint8Array[] = [], a_trunks:Uint8Array[] = [];
         let v_size = 0, a_size = 0;
         while (ftell < data.byteLength) {
-            const fp = new DataView(data, ftell, 16);
+            const fp = new DataView(data, ftell, 32);
             const magic = fp.getUint32(0, true);
             const len = fp.getUint32(4);
             const off  = fp.getUint16(8);
             const pad = fp.getUint16(10);
             const type = fp.getUint32(12);
-            let p:Uint8Array, mask:Uint8Array;
+            const frameTime = fp.getUint32(16);
+            const frameRate = fp.getUint32(20);
+            let p:Uint8Array;
             switch (magic) {
                 case 0x44495243: // CRID
-                    p = new Uint8Array(data, ftell + off + 8, len - off - pad);
+                    this.parseString(data.slice(ftell + off + 8), len - off - pad);
                     break;
                 case 0x56465340: // @SFV
                     if (type) break;

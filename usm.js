@@ -40,6 +40,8 @@ var CRID = /** @class */ (function () {
         if (key2 === void 0) { key2 = 0; }
         this.video = new Uint8Array();
         this.audio = new Uint8Array();
+        this.strings = [];
+        this.constString = new Set(["", "<NULL>", "fmtver", "filename", "filesize", "datasize", "stmid", "chno", "minchk", "minbuf", "avbps"]);
         this._vm1 = new Uint8Array(0x20);
         this._vm2 = new Uint8Array(0x20);
         this._am = new Uint8Array(0x20);
@@ -125,9 +127,35 @@ var CRID = /** @class */ (function () {
             this._am[i] = (i & 1) ? t2[(i >> 1) & 3].charCodeAt(0) : this._vm2[i];
         }
     };
+    CRID.prototype.parseString = function (data, len) {
+        var fp = new DataView(data, 0, len);
+        var sign = fp.getUint32(0, true);
+        var size = fp.getUint32(4);
+        var valueOffset = fp.getUint32(8);
+        var stringOffset = fp.getUint32(12);
+        var dataOffset = fp.getUint32(16);
+        var nameOffset = fp.getUint32(20);
+        var elementCount = fp.getUint16(24);
+        var valueSize = fp.getUint16(26);
+        var valueCount = fp.getUint32(28);
+        var _sl = dataOffset - stringOffset;
+        var p = new Uint8Array(data, 8 + stringOffset, _sl);
+        var jisdecoder = new TextDecoder('shift-jis');
+        var i = 0;
+        var j = 0;
+        while (i < _sl) {
+            while (p[i])
+                ++i;
+            var s = jisdecoder.decode(p.slice(j, i));
+            j = ++i;
+            if (this.constString.has(s))
+                continue;
+            this.strings.push(s);
+        }
+    };
     CRID.prototype.demuxAsync = function (data) {
         return __awaiter(this, void 0, void 0, function () {
-            var ftell, v_trunks, a_trunks, v_size, a_size, fp, magic, len, off, pad, type, p, mask;
+            var ftell, v_trunks, a_trunks, v_size, a_size, fp, magic, len, off, pad, type, frameTime, frameRate, p;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -135,16 +163,18 @@ var CRID = /** @class */ (function () {
                         v_trunks = [], a_trunks = [];
                         v_size = 0, a_size = 0;
                         while (ftell < data.byteLength) {
-                            fp = new DataView(data, ftell, 16);
+                            fp = new DataView(data, ftell, 32);
                             magic = fp.getUint32(0, true);
                             len = fp.getUint32(4);
                             off = fp.getUint16(8);
                             pad = fp.getUint16(10);
                             type = fp.getUint32(12);
-                            p = void 0, mask = void 0;
+                            frameTime = fp.getUint32(16);
+                            frameRate = fp.getUint32(20);
+                            p = void 0;
                             switch (magic) {
                                 case 0x44495243: // CRID
-                                    p = new Uint8Array(data, ftell + off + 8, len - off - pad);
+                                    this.parseString(data.slice(ftell + off + 8), len - off - pad);
                                     break;
                                 case 0x56465340: // @SFV
                                     if (type)
@@ -186,16 +216,18 @@ var CRID = /** @class */ (function () {
         var v_trunks = [], a_trunks = [];
         var v_size = 0, a_size = 0;
         while (ftell < data.byteLength) {
-            var fp = new DataView(data, ftell, 16);
+            var fp = new DataView(data, ftell, 32);
             var magic = fp.getUint32(0, true);
             var len = fp.getUint32(4);
             var off = fp.getUint16(8);
             var pad = fp.getUint16(10);
             var type = fp.getUint32(12);
-            var p = void 0, mask = void 0;
+            var frameTime = fp.getUint32(16);
+            var frameRate = fp.getUint32(20);
+            var p = void 0;
             switch (magic) {
                 case 0x44495243: // CRID
-                    p = new Uint8Array(data, ftell + off + 8, len - off - pad);
+                    this.parseString(data.slice(ftell + off + 8), len - off - pad);
                     break;
                 case 0x56465340: // @SFV
                     if (type)
