@@ -11,7 +11,7 @@ class CRID {
         let buff = new Uint8Array(4);
         try { switch (typeof key) {
             case "string":
-                key = parseInt(key)
+                key = parseInt(key) || parseInt("0x" + key);
             case 'number':
                 buff[0] = key & 0xff;
                 buff[1] = key >> 8 & 0xff;
@@ -38,7 +38,7 @@ class CRID {
             key1 = this.parseKey(key1);
             key2 = this.parseKey(key2 ? key2 : key1 >> 32);
         } else if (typeof key1 === 'string') {
-            key1 = parseInt(key1);
+            key1 = parseInt(key1) || parseInt("0x" + key1);;
             key1 = this.parseKey(key1);
             key2 = this.parseKey(key2 ? key2 : key1 >> 32);
         } else {

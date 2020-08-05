@@ -1,0 +1,86 @@
+//------------------------------------------------
+//--- 010 Editor v8.0 Binary Template
+//
+//      File: usm.bt
+//   Authors: Misaka Honoka
+//    E-mail: 2361547758@qq.com
+//       Url: 
+//   Version: 1.0
+//   Purpose: Parse CRIDWARE usm file. 
+//  Category: Binary
+// File Mask: *.usm
+//  ID Bytes: 43 52 49 44
+//   History: 
+//
+//   License: This file is released into the public domain. People may 
+//          use it for any purpose, commercial or otherwise. 
+//------------------------------------------------
+
+typedef struct {
+	string _string;
+} cString <optimize=false, read=cStringRead>;
+
+wstring cStringRead(cString& o) {
+    string y = ConvertString(o._string, CHARSET_JAPANESE, CHARSET_UTF8);
+    return StringToWString(y, CHARSET_UTF8);
+}
+
+typedef struct {
+	char sign[4];
+	uint32 size;
+	struct {
+		uint32 valueOffset;
+		uint32 stringOffset;
+		uint32 dataOffset;
+		uint32 nameOffset;
+		uint16 elementCount;
+		uint16 valueSize;
+		uint32 valueCount;
+	} stInfo;
+	// char data[size - 24];
+	char gap[stInfo.stringOffset - 24];
+	local uint32 _sl = stInfo.dataOffset - stInfo.stringOffset;
+	local uint32 i = 0;
+	while (i < _sl) {
+		cString _string;
+		i += Strlen(_string._string) + 1;
+	}
+	char _data[size - stInfo.dataOffset];
+} INFO;
+
+typedef struct {
+	char magic[4];
+	uint32 len;
+	struct {
+		uint16 off;
+		uint16 pad;
+		uint32 type;
+		uint32 frameTime;
+		uint32 frameRate;
+		char gap[off - 16];
+		if (magic == "CRID" && (type==1 || type==3))
+			INFO info;
+		else char p[len - off - pad];
+		if (pad) char nop[pad];
+	} DATA;
+} TRUNK <read=TrunkRead>;
+
+string TrunkRead(TRUNK& o) {
+	switch (o.DATA.type) {
+		case 1: return "META START "+o.magic;
+		case 2: return "META END "+o.magic;
+		case 3: return "META "+o.magic;
+		case 0:
+		default:
+			return o.magic;
+	}
+}
+
+typedef struct {
+	while (!FEof()) TRUNK trunk;
+} USM;
+
+//LittleEndian();
+BigEndian();
+
+USM usm;
