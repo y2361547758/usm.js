@@ -41,7 +41,7 @@ var CRID = /** @class */ (function () {
         this.video = new Uint8Array();
         this.audio = new Uint8Array();
         this.strings = [];
-        this.constString = new Set(["", "<NULL>", "fmtver", "filename", "filesize", "datasize", "stmid", "chno", "minchk", "minbuf", "avbps"]);
+        this.constString = new Set(["", "<NULL>", "fmtver", "filename", "filesize", "datasize", "stmid", "chno", "minchk", "minbuf", "avbps", "CRIUSF_DIR_STREAM"]);
         this._vm1 = new Uint8Array(0x20);
         this._vm2 = new Uint8Array(0x20);
         this._am = new Uint8Array(0x20);
@@ -54,7 +54,8 @@ var CRID = /** @class */ (function () {
             key2 = this.parseKey(key2 ? key2 : key1 >> 32);
         }
         else if (typeof key1 === 'string') {
-            key1 = parseInt(key1);
+            key1 = parseInt(key1) || parseInt("0x" + key1);
+            ;
             key1 = this.parseKey(key1);
             key2 = this.parseKey(key2 ? key2 : key1 >> 32);
         }
@@ -69,7 +70,7 @@ var CRID = /** @class */ (function () {
         try {
             switch (typeof key) {
                 case "string":
-                    key = parseInt(key);
+                    key = parseInt(key) || parseInt("0x" + key);
                 case 'number':
                     buff[0] = key & 0xff;
                     buff[1] = key >> 8 & 0xff;
@@ -153,68 +154,16 @@ var CRID = /** @class */ (function () {
             this.strings.push(s);
         }
     };
-    CRID.prototype.demuxAsync = function (data) {
-        return __awaiter(this, void 0, void 0, function () {
-            var ftell, v_trunks, a_trunks, v_size, a_size, fp, magic, len, off, pad, type, frameTime, frameRate, p;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0:
-                        ftell = 0;
-                        v_trunks = [], a_trunks = [];
-                        v_size = 0, a_size = 0;
-                        while (ftell < data.byteLength) {
-                            fp = new DataView(data, ftell, 32);
-                            magic = fp.getUint32(0, true);
-                            len = fp.getUint32(4);
-                            off = fp.getUint16(8);
-                            pad = fp.getUint16(10);
-                            type = fp.getUint32(12);
-                            frameTime = fp.getUint32(16);
-                            frameRate = fp.getUint32(20);
-                            p = void 0;
-                            switch (magic) {
-                                case 0x44495243: // CRID
-                                    this.parseString(data.slice(ftell + off + 8), len - off - pad);
-                                    break;
-                                case 0x56465340: // @SFV
-                                    if (type)
-                                        break;
-                                    data.slice(ftell + off + 8);
-                                    p = new Uint8Array(data, ftell + off + 8, len - off - pad);
-                                    v_size += p.byteLength;
-                                    v_trunks.push(this.maskVideoAsync(p));
-                                    break;
-                                case 0x41465340: // @SFA
-                                    if (type)
-                                        break;
-                                    p = new Uint8Array(data, ftell + off + 8, len - off - pad);
-                                    a_size += p.byteLength;
-                                    a_trunks.push(this.maskAudioAsync(p));
-                                    break;
-                                default: // @CUE ...
-                            }
-                            ftell += len + 8;
-                        }
-                        this.video = new Uint8Array(v_size);
-                        this.audio = new Uint8Array(a_size);
-                        return [4 /*yield*/, Promise.all([
-                                this.concatAsync(v_trunks, this.video),
-                                this.concatAsync(a_trunks, this.audio)
-                            ])];
-                    case 1:
-                        _a.sent();
-                        return [2 /*return*/, {
-                                video: this.video,
-                                audio: this.audio
-                            }];
-                }
-            });
-        });
-    };
-    CRID.prototype.demux = function (data) {
+    CRID.prototype.parseTrunk = function (data, async) {
+        if (async === void 0) { async = false; }
         var ftell = 0;
-        var v_trunks = [], a_trunks = [];
-        var v_size = 0, a_size = 0;
+        var v_trunks = [];
+        var a_trunks = [];
+        var v_trunks_a = [];
+        var a_trunks_a = [];
+        var v_size = 0;
+        var a_size = 0;
+        this.strings = [];
         while (ftell < data.byteLength) {
             var fp = new DataView(data, ftell, 32);
             var magic = fp.getUint32(0, true);
@@ -235,43 +184,60 @@ var CRID = /** @class */ (function () {
                     data.slice(ftell + off + 8);
                     p = new Uint8Array(data, ftell + off + 8, len - off - pad);
                     v_size += p.byteLength;
-                    v_trunks.push(this.maskVideo(p));
+                    if (async)
+                        v_trunks_a.push(this.maskVideoAsync(p));
+                    else
+                        v_trunks.push(this.maskVideo(p));
                     break;
                 case 0x41465340: // @SFA
                     if (type)
                         break;
                     p = new Uint8Array(data, ftell + off + 8, len - off - pad);
                     a_size += p.byteLength;
-                    a_trunks.push(this.maskAudio(p));
+                    if (async)
+                        a_trunks_a.push(this.maskAudioAsync(p));
+                    else
+                        a_trunks.push(this.maskAudio(p));
                     break;
                 default: // @CUE ...
             }
             ftell += len + 8;
         }
-        this.video = new Uint8Array(v_size);
-        this.audio = new Uint8Array(a_size);
-        this.concat(v_trunks, this.video);
-        this.concat(a_trunks, this.audio);
+        return { v_trunks: v_trunks, v_trunks_a: v_trunks_a, v_size: v_size, a_trunks: a_trunks, a_trunks_a: a_trunks_a, a_size: a_size };
+    };
+    CRID.prototype.demuxAsync = function (data) {
+        return __awaiter(this, void 0, void 0, function () {
+            var result;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        result = this.parseTrunk(data, true);
+                        this.video = new Uint8Array(result.v_size);
+                        this.audio = new Uint8Array(result.a_size);
+                        return [4 /*yield*/, Promise.all([
+                                this.concatAsync(result.v_trunks_a, this.video),
+                                this.concatAsync(result.a_trunks_a, this.audio)
+                            ])];
+                    case 1:
+                        _a.sent();
+                        return [2 /*return*/, {
+                                video: this.video,
+                                audio: this.audio
+                            }];
+                }
+            });
+        });
+    };
+    CRID.prototype.demux = function (data) {
+        var result = this.parseTrunk(data);
+        this.video = new Uint8Array(result.v_size);
+        this.audio = new Uint8Array(result.a_size);
+        this.concat(result.v_trunks, this.video);
+        this.concat(result.a_trunks, this.audio);
         return {
             video: this.video,
             audio: this.audio
         };
-    };
-    CRID.prototype.maskVideoAsync = function (p) {
-        return __awaiter(this, void 0, void 0, function () {
-            var mask, j, j;
-            return __generator(this, function (_a) {
-                if (p.byteLength >= 0x240) {
-                    mask = new Uint8Array(this._vm2);
-                    for (j = 0x140; j < p.byteLength; j++)
-                        mask[j & 0x1f] = (p[j] ^= mask[j & 0x1f]) ^ this._vm2[j & 0x1f];
-                    mask = new Uint8Array(this._vm1);
-                    for (j = 0x40; j < 0x140; j++)
-                        p[j] ^= mask[j & 0x1f] ^= p[j + 0x100];
-                }
-                return [2 /*return*/, p];
-            });
-        });
     };
     CRID.prototype.maskVideo = function (p) {
         if (p.byteLength >= 0x240) {
@@ -284,20 +250,20 @@ var CRID = /** @class */ (function () {
         }
         return p;
     };
-    CRID.prototype.maskAudioAsync = function (p) {
-        return __awaiter(this, void 0, void 0, function () {
-            var j;
-            return __generator(this, function (_a) {
-                for (j = 0x140; j < p.byteLength; j++)
-                    p[j] ^= this._am[j & 0x1f];
-                return [2 /*return*/, p];
-            });
-        });
+    CRID.prototype.maskVideoAsync = function (p) {
+        return __awaiter(this, void 0, void 0, function () { return __generator(this, function (_a) {
+            return [2 /*return*/, this.maskVideo(p)];
+        }); });
     };
     CRID.prototype.maskAudio = function (p) {
         for (var j = 0x140; j < p.byteLength; j++)
             p[j] ^= this._am[j & 0x1f];
         return p;
+    };
+    CRID.prototype.maskAudioAsync = function (p) {
+        return __awaiter(this, void 0, void 0, function () { return __generator(this, function (_a) {
+            return [2 /*return*/, this.maskAudio(p)];
+        }); });
     };
     CRID.prototype.concatAsync = function (trunks, dist) {
         return __awaiter(this, void 0, void 0, function () {
