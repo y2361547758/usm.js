@@ -138,7 +138,6 @@ class CRID {
                     break;
                 case 0x56465340: // @SFV
                     if (type) break;
-                    data.slice(ftell + off + 8, )
                     p = new Uint8Array(data, ftell + off + 8, len - off - pad);
                     v_size += p.byteLength;
                     if (async) v_trunks_a.push(this.maskVideoAsync(p));
